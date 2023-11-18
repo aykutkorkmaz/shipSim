@@ -1,0 +1,118 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from calculations import *
+from data_extraction import extract_wave_data
+from navigation import *
+from wave_occurence_diagram import *
+from plot_results import *
+
+# Import wave data
+wave_data_files = [["Point1_Hgt.csv", "Point1_Per.csv", "Point1_Dir.csv"],
+                   ["Point3_Hgt.csv", "Point3_Per.csv", "Point3_Dir.csv"],
+                   ["Point5_Hgt.csv", "Point5_Per.csv", "Point5_Dir.csv"]]
+
+wave_height1, wave_period1, wave_direction1 = extract_wave_data(wave_data_files[0][0], wave_data_files[0][1],
+                                                                wave_data_files[0][2])
+wave_height3, wave_period3, wave_direction3 = extract_wave_data(wave_data_files[1][0], wave_data_files[1][1],
+                                                                wave_data_files[1][2])
+wave_height5, wave_period5, wave_direction5 = extract_wave_data(wave_data_files[2][0], wave_data_files[2][1],
+                                                                wave_data_files[2][2])
+print(wave_direction1)
+wave_direction2 = np.array(wave_direction1)
+print(wave_direction2)
+
+# Calculation parameters for power
+V_ship = np.array([1.49999999999999, 1.5926, 1.7963, 2.0000, 2.2963, 2.4907, 2.7963, 2.9907, 3.2963, 3.4815, 3.6759,
+                   3.8056, 4.0000, 4.1574, 4.2870, 4.4815, 4.6481, 4.7963, 4.9815, 5.0741, 5.1852, 5.2963, 5.3889,
+                   5.4815, 5.7037, 5.8056, 5.9907])
+P_E = np.array([0.091019417, 0.121359223, 0.151699029, 0.242718447, 0.333737864, 0.424757282, 0.606796117, 0.72815534,
+                1.031553398, 1.243932039, 1.516990291, 1.759708738, 2.39684466, 3.185679612, 4.004854369, 5.248786408,
+                6.280339806, 7.281553398, 9.01092233, 10.04247573, 11.49878641, 13.0157767, 14.53276699, 15.77669903,
+                18.17354369, 19.14441748, 20.8131068])
+w_T = 0.0047  # wake fraction
+t = 0.0012  # thrust deduction
+eta_R = 1  # relative rotative efficiency
+eta_O = 0.55  # open water efficiency (worst case scenario)
+eta_T = 0.98  # transmission losses
+SCF = 1  # ship correlation factor
+margins = 0.3  # sea margin
+
+# Calculate ship power
+P_D_model, P_D_ship, P_S, P_I = calculate_power(P_E, w_T, t, eta_R, eta_O, eta_T, SCF, margins)
+
+# Coordinates
+start_point = (57.0, 0.0)
+# = (57.141918, -2.067944)
+end_point = (56.0, -1.0)
+#end_point = (57.812859, -0.977633)
+
+# Calculate heading and distance
+heading = calculate_direction(start_point, end_point)
+distance = calculate_distance(start_point, end_point)
+
+# Route 1 - Total energy calculations
+dist_nm = conversion_km_to_nm(distance)
+voyage_duration = dist_nm / V_ship
+total_energy_req_S = P_S * voyage_duration
+total_energy_req_I = P_I * voyage_duration
+
+# Plot the wave directions occurrence for every month and get the occurrences data
+print_count_for_lines = False
+#counts_per_months = wave_occurrence_diagram_plot(wave_direction1, heading, print_count_for_lines)
+
+# Print results
+plot_route_ship_info(start_point, end_point, heading, distance)
+plot_power_calculations(P_E, P_D_model, P_D_ship, P_S, P_I)
+# plot_wave_results(wave_height1, wave_period1, wave_direction1, wave_height3, wave_period3, wave_direction3,
+# wave_height5, wave_period5, wave_direction5)
+
+
+wave_direction = wave_direction2[0][0]  # Wave direction is 180 degrees
+print(wave_direction)
+angle_difference = calculate_wave_ship_angle(heading, wave_direction)
+print(f"Angle between the ship and the wave: {angle_difference} degrees")
+
+
+# Load the Excel file
+excel_file = pd.ExcelFile("AvDataWithFoil.xlsx")
+
+# Create an empty dictionary to store data from all sheets
+data_dict = {}
+
+# Iterate through the sheet names and load data into the dictionary
+sheet_names = ["Hs 1m", "Hs 2m", "Hs 3m", "Hs 4m"]
+for sheet_name in sheet_names:
+    # Load all columns except the first one
+    data_dict[sheet_name] = excel_file.parse(sheet_name=sheet_name).iloc[:, :]
+
+# Convert data_dict to a DataFrame
+df = pd.concat(data_dict)
+
+# Now you have all the data from the four sheets in a single DataFrame 'df'
+print(df)
+
+# Now you have all the data from the four sheets in the data_dict dictionary
+# You can access the data for each sheet using the sheet name as the key
+# For example, to access data for "Hs 1m" sheet:
+hs_1m_data = data_dict["Hs 1m"]
+print(hs_1m_data)
+
+# To access data for other sheets, use the corresponding keys in the data_dict
+
+print(df.iloc[0, 1])
+
+# Load the Excel file
+excel_file = pd.ExcelFile("AvDataWithFoil.xlsx")
+
+# Define the columns you want to import
+columns_to_import = [0, 1, 4, 7, 10, 13]  # Replace with the column indices you want
+
+# Specify the sheet name
+sheet_name = "Hs 1m"  # Replace with your sheet name
+
+# Read the Excel sheet and select the specified columns
+df = pd.read_excel(excel_file, sheet_name=sheet_name, usecols=columns_to_import)
+
+# Now 'df' contains the data from the specified columns
+print(df)
